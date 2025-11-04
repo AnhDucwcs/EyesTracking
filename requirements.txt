@@ -3,3 +3,10 @@ mediapipe
 numpy
 scikit-learn
 pyautogui
+<<<<<<< Updated upstream
+=======
+pandas
+matplotlib
+seaborn
+joblib
+>>>>>>> Stashed changes

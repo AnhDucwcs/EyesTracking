@@ -5,7 +5,7 @@ import time
 
 # Xử lý việc lấy khung hình từ camera trong một luồng riêng biệt
 class Camera:
-    def __init__(self, device=0, width=1440, height=900, fps=30):
+    def __init__(self, device=0, width=1280, height=720, fps=30):
         self.device = device
         self.width = width
         self.height = height

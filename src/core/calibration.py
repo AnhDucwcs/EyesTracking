@@ -1,5 +1,6 @@
 import numpy as np
 from .gaze_estimator import GazeEstimator
+from .utils import generate_calibration_points
 
 
 class Calibrator:
@@ -7,7 +8,7 @@ class Calibrator:
         self.estimator = estimator
         self.samples_per_point = samples_per_point
 
-        self.points_to_calibrate = self._generate_calibration_points(grid_size, point_margin)
+        self.points_to_calibrate = generate_calibration_points(grid_size, point_margin)
         self.total_points = len(self.points_to_calibrate)
         print(f"Calibrator duoc khoi tao voi luoi {grid_size}x{grid_size} ({self.total_points} diem).")
         
@@ -21,18 +22,7 @@ class Calibrator:
         self.collected_targets_x = []
         self.collected_targets_y = []
         
-    def _generate_calibration_points(self, grid_size, margin):
-        points = []
-        if grid_size == 1: # Trường hợp đặc biệt: chỉ một điểm ở giữa
-            return [(0.5, 0.5)]
-            
-        # Tạo ra các giá trị tọa độ cách đều nhau, có tính đến lề
-        # np.linspace tạo ra các điểm từ 'margin' đến '1.0 - margin'
-        coords = np.linspace(margin, 1.0 - margin, grid_size)
-        for y in coords:
-            for x in coords:
-                points.append((x, y))
-        return points
+    
     
     def start(self):
         print("Bắt đầu hiệu chỉnh...")

@@ -25,6 +25,24 @@ CALIB_OUTER_RADIUS = 15
 CALIB_INNER_RADIUS = 3
 CALIB_CIRCLE_THICKNESS = 2
 
+# --- Điểm mốc quan trọng trên khuôn mặt ---
+KEY_LANDMARK_INDICES = [
+    1,   # 1. Chóp mũi
+    152, # 2. Cằm
+    33,  # 3. Khóe mắt trái
+    263, # 4. Khóe mắt phải
+    61,  # 5. Khóe miệng trái
+    291,  # 6. Khóe miệng phải
+    133,
+    159,
+    145,
+    362,
+    386,
+    374,
+    473,
+    468
+]
+
 
 def draw_text(frame, text, position, color = COLOR_WHITE, scale = FONT_SCALE_SMALL):
     # Vẽ viền đen
@@ -50,3 +68,9 @@ def draw_gaze_dot(frame, center_coords):
     cv2.circle(frame, center_coords, GAZE_DOT_RADIUS, COLOR_GREEN, GAZE_DOT_THICKNESS, cv2.LINE_AA)
 
 
+def draw_key_landmarks(frame, landmarks_array):
+    for idx in KEY_LANDMARK_INDICES:
+        x = int(landmarks_array[idx][0])
+        y = int(landmarks_array[idx][1])
+        cv2.circle(frame, (x, y), 3, COLOR_GREEN, -1, cv2.LINE_AA)
+    
