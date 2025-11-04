@@ -3,4 +3,3 @@ mediapipe
 numpy
 scikit-learn
 pyautogui
-OneEuroFilter
