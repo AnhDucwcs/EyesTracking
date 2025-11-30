@@ -2,14 +2,14 @@ import time
 import pandas as pd
 import joblib
 import os
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
-DATA_FILE = 'data/collected_data_cleaned.csv'
+DATA_FILE = 'data/training_master.csv'
 MODEL_DIR = 'models'
 SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 
@@ -23,15 +23,14 @@ except FileNotFoundError:
     
 print(f"Đã tải {len(df)} hàng dữ liệu.")
 
-X = df.iloc[:, :-2]
-y = df.iloc[:, -2:]
+X = df.iloc[:, :-3]
+y = df.iloc[:, -3:-1]
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
 print(f"Kích thước bộ huấn luyện: {len(X_train)} mẫu")
-print(f"Kích thước bộ kiểm tra: {len(X_test)} mẫu")
 
 
 scaler = StandardScaler()
@@ -48,12 +47,16 @@ models_to_train = {
         min_samples_leaf=5
     ),
     "KNeighbors": KNeighborsRegressor(
-        n_neighbors=5, 
+        n_neighbors=9, 
         n_jobs=-1
     ),
     "MLP": MLPRegressor(
-        hidden_layer_sizes=(32, 16), 
-        max_iter=500, 
+        hidden_layer_sizes=(256, 128, 64), 
+        activation='relu',
+        solver='adam',
+        learning_rate_init=0.01,
+        alpha=0.001,
+        max_iter=1000, 
         random_state=42,
         early_stopping=True
     )
@@ -108,3 +111,4 @@ print("\n-------------------------------------------")
 joblib.dump(scaler, SCALER_PATH)
 print(f"Đã lưu scaler vào: {SCALER_PATH}")
 print("Quá trình hoàn tất.")
+

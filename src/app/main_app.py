@@ -31,8 +31,8 @@ def main():
     cam = Camera()
     detector = FaceMeshDetector()
     estimator = GazeEstimator()
-    gaze_filter = OneEuroWrapper(min_cutoff = 0.1, beta = 1.0)
-    calibrator = Calibrator(estimator, samples_per_point = 70, grid_size = 3)
+    gaze_filter = OneEuroWrapper(min_cutoff = 0.5, beta = 0.1)
+    
     FRAME_WIDTH, FRAME_HEIGHT = cam.width, cam.height
     print(f"Kích thước Frame: {FRAME_WIDTH}x{FRAME_HEIGHT}")
     print("Kích thước màn hình: ", SCREEN_WIDTH, "x", SCREEN_HEIGHT)
@@ -47,8 +47,9 @@ def main():
         print(f"LỖI: Không tìm thấy file mô hình/scaler tại '{MODEL_PATH}'")
         print("Vui lòng chạy train_model.py trước.")
         return
-    
-    
+
+    calibrator = Calibrator(model, scaler, samples_per_point=50, grid_size=3)
+
     # Khởi động camera
     print("Đang khởi động camera...")
     cam.start()
@@ -100,54 +101,46 @@ def main():
             canvas[SCREEN_HEIGHT - FRAME_HEIGHT : SCREEN_HEIGHT, 
                SCREEN_WIDTH - FRAME_WIDTH : SCREEN_WIDTH] = ui_frame
         
-            X_scaled = scaler.transform(features.reshape(1, -1))
-            predicted_norm = model.predict(X_scaled) # Kết quả là [norm_x, norm_y]   
-            gaze_norm_filtered = gaze_filter.update(predicted_norm[0])
-            norm_x = gaze_norm_filtered[0]
-            norm_y = gaze_norm_filtered[1]
-            gaze_x = int(norm_x * SCREEN_WIDTH)
-            gaze_y = int(norm_y * SCREEN_HEIGHT)
-            ui.draw_gaze_dot(canvas, (gaze_x, gaze_y))
-        
-        
-            
-        # # --- Calibration ---
-        # if calibrator.is_calibrating:
-        #     if features is not None:
-        #         # Cập nhật calibrator với các đặc trưng mắt hiện tại
-        #         calibrator.update(features)
-        
-        #     target_coords_norm = calibrator.get_current_target_norm_coords()  
-        #     if target_coords_norm:
-        #         norm_x, norm_y = target_coords_norm
-        #         pixel_x = int(norm_x * SCREEN_WIDTH)
-        #         pixel_y = int(norm_y * SCREEN_HEIGHT) 
-        #         ui.draw_calibration_dot(ui_frame, (pixel_x, pixel_y))
-        # elif calibrator.is_finished:
-        #     if features is not None:
-        #         # Dự đoán tọa độ chuẩn hóa (0.0 -> 1.0)
-        #         raw_gaze_norm = estimator.predict(features) # (x_norm, y_norm)
+        key = cv2.waitKey(1) & 0xFF   
+        # --- Calibration ---
+        if calibrator.is_calibrating:       
+            target_coords_norm = calibrator.get_current_target_norm_coords()  
+            if target_coords_norm:
+                norm_x, norm_y = target_coords_norm
+                pixel_x = int(norm_x * SCREEN_WIDTH)
+                pixel_y = int(norm_y * SCREEN_HEIGHT)
+                progress_text = None
+                if not calibrator.is_waiting_for_trigger:
+                    progress_text = calibrator.collection_progress_text
+                ui.draw_calibration_dot(canvas, (pixel_x, pixel_y), progress_text=progress_text)
+            if key == ord(' '):
+                calibrator.trigger_collection()
+            if features is not None:
+                calibrator.collect_sample(features)
+        elif calibrator.is_finished:
+            if features is not None:
+                # Dự đoán tọa độ chuẩn hóa (0.0 -> 1.0)
+                raw_gaze_norm = calibrator.get_estimated_gaze(features)
                 
-        #         if raw_gaze_norm:
-        #             gaze_norm_filtered = gaze_filter.update(raw_gaze_norm)
-        #             # Chuyển đổi tọa độ đã lọc sang pixel
-        #             gaze_px_x = int(gaze_norm_filtered[0] * SCREEN_WIDTH)
-        #             gaze_px_y = int(gaze_norm_filtered[1] * SCREEN_HEIGHT)
-        #             ui.draw_gaze_dot(ui_frame, (gaze_px_x, gaze_px_y))
+                if raw_gaze_norm is not None:
+                    gaze_norm_filtered = gaze_filter.update(raw_gaze_norm)
+                    # Chuyển đổi tọa độ đã lọc sang pixel
+                    gaze_px_x = int(gaze_norm_filtered[0] * SCREEN_WIDTH)
+                    gaze_px_y = int(gaze_norm_filtered[1] * SCREEN_HEIGHT)
+                    ui.draw_gaze_dot(canvas, (gaze_px_x, gaze_px_y))
+        else:
+            if key == ord('c'):
+                calibrator.start()
         
-        # status_text = calibrator.get_progress_text()
-        # ui.draw_text(canvas, status_text, (50, 70), color=ui.COLOR_WHITE)
+        status_text = calibrator.get_progress_text()
+        ui.draw_text(canvas, status_text, (50, 70), color=ui.COLOR_WHITE)
         
         # --- Hiện thị ---
         cv2.imshow(WINDOW_NAME, canvas) 
 
-        key = cv2.waitKey(1) & 0xFF
+        
         if key == ord('q') or key == 27:
             break
-        # if key == ord('c'):
-        #     calibrator.start()
-        # if key == ord(' '):
-        #     calibrator.trigger_collection()
 
     cam.stop()
     cv2.destroyAllWindows()

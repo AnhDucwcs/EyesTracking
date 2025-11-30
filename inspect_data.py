@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-df = pd.read_csv("data/collected_data.csv")
+df = pd.read_csv("data/data_nightlight.csv")
 eye_cols = ['feat_0', 'feat_1', 'feat_2', 'feat_3']
 head_cols = ['feat_4', 'feat_5', 'feat_6', 'feat_7', 'feat_8', 'feat_9']
+
+print(f"Dữ liệu ban đầu có {len(df)} hàng\n")
 
 
 print("--- Dữ liệu thiếu (NaN) ---")
@@ -34,43 +36,40 @@ if len(invalid_targets) > 0:
     print("Đã xóa các hàng target không hợp lệ.")
 
 
-# print("\nĐang tạo biểu đồ Box Plot (hãy kiểm tra cửa sổ mới)...")
-# plt.figure(figsize=(15, 5))
-# sns.boxplot(data=df[head_cols])
-# plt.title("Box Plot")
-# plt.show()
+# df = df.drop(index=[])
+# df = df[(df['feat_9'] > 0) & (df['feat_9'] < 6000)]
+# df = df[(df['feat_7'] > -10000) & (df['feat_7'] < 10000)]
+# df = df[(df['feat_8'] > -10000) & (df['feat_8'] < 10000)]
+
+# df = df[(df['feat_0'] < 3.2) & (df['feat_0'] > 2.7)]
+# df = df[(df['feat_1'] < 1.0) & (df['feat_1'] > -0)]
+# df = df[(df['feat_2'] < -1.8) & (df['feat_2'] > -2.2)]
+# df = df[(df['feat_3'] < 1.0) & (df['feat_3'] > -0.1)]
+
+# print(f"Dữ liệu sau làm sạch có {len(df)} hàng.")
 
 
-# df[eye_cols].plot(figsize=(15, 7), 
-#                          title="Biểu đồ 4 Đặc trưng Mắt (Tìm 'vực sâu' = nháy mắt)",
-#                          grid=True, subplots=False) # 'subplots=False' để vẽ chung 1 biểu đồ
 
-# plt.xlabel("Chỉ số hàng (Thời gian)")
-# plt.ylabel("Giá trị đặc trưng")
-# plt.show()
-
-"""
-Sau khi xem các biểu đồ, có thể thấy có nhiều điểm ở feat_9 âm, đây là đặc trưng biểu diễn giá trị tz aka khoảng cách, 
-do đó giá trị này âm mang ý nghĩa giá trị này là một giá trị lỗi, ngoài ra còn thấy nhiễu ở feat_7 và feat_8.
-    df = df[df['feat_9'] > 0]
-    df = df[(df['feat_7'] > -1000) & (df['feat_7'] < 1000)]
-    df = df[(df['feat_8'] > -1000) & (df['feat_8'] < 1000)]
-Kiểm tra Biểu đồ 4 đặc trưng mắt (Tìm 'vực sâu' = nháy mắt): Ta thấy được hai giá trị cột 2654 và 2655 có giá trị thấp đột ngột,
-có thể đây là lúc người dùng nháy mắt, ta có thể loại bỏ hai hàng này nếu muốn.
-    df = df.drop(index=[2654, 2655, 2656])
-"""
-df = df.drop(index=[2654, 2655, 2656])
-df = df[df['feat_9'] > 0]
+print("\nĐang tạo biểu đồ Box Plot (hãy kiểm tra cửa sổ mới)...")
+plt.figure(figsize=(15, 5))
+sns.boxplot(data=df[head_cols])
+plt.title("Box Plot")
+plt.show()
 
 
 df[eye_cols].plot(figsize=(15, 7), 
                          title="Biểu đồ 4 Đặc trưng Mắt (Tìm 'vực sâu' = nháy mắt)",
-                         grid=True, subplots=False) # 'subplots=False' để vẽ chung 1 biểu đồ
+                         grid=True, subplots=True) # 'subplots=False' để vẽ chung 1 biểu đồ
 
 plt.xlabel("Chỉ số hàng (Thời gian)")
 plt.ylabel("Giá trị đặc trưng")
 plt.show()
 
-print(f"Dữ liệu sạch cuối cùng có {len(df)} hàng.")
-output_filename = 'data/collected_data_cleaned.csv'
-df.to_csv(output_filename, index=False)
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=df, x='target_x', y='target_y') 
+plt.title("Mối quan hệ Giữa target_x và target_y")
+plt.show()
+
+# print(f"Dữ liệu sạch cuối cùng có {len(df)} hàng.")
+# output_filename = 'data/data_cafe_0_cleaned1.csv'
+# df.to_csv(output_filename, index=False)

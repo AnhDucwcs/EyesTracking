@@ -1,26 +1,27 @@
 import numpy as np
-from .gaze_estimator import GazeEstimator
+from sklearn.neighbors import KNeighborsRegressor
 from .utils import generate_calibration_points
 
 
 class Calibrator:
-    def __init__(self, estimator: GazeEstimator, samples_per_point=120, grid_size=3, point_margin=0.1):
-        self.estimator = estimator
+    def __init__(self, base_model, base_scaler, samples_per_point=50, grid_size=3):
         self.samples_per_point = samples_per_point
+        self.base_model = base_model
+        self.base_scaler = base_scaler
+        self.error_model = KNeighborsRegressor(n_neighbors=7, weights='distance')
 
-        self.points_to_calibrate = generate_calibration_points(grid_size, point_margin)
+        self.points_to_calibrate = generate_calibration_points(grid_size, 0.1)
         self.total_points = len(self.points_to_calibrate)
         print(f"Calibrator duoc khoi tao voi luoi {grid_size}x{grid_size} ({self.total_points} diem).")
         
-        self.current_point_index = 0.
-        self.current_sample_count = 0.
+        self.current_point_index = 0
         self._is_calibrating = False
         self._is_finished = False
         self._is_waiting_for_trigger = True
         
-        self.collected_features = []
-        self.collected_targets_x = []
-        self.collected_targets_y = []
+        self.collected_base_preds = []
+        self.collected_errors = []
+        self.samples_collected = 0
         
     
     
@@ -29,13 +30,12 @@ class Calibrator:
         self._is_calibrating = True
         self._is_finished = False
         self.current_point_index = 0
-        self.current_sample_count = 0
+        self.samples_collected = 0
+
         self._is_waiting_for_trigger = True
-        
         # Xóa dữ liệu cũ
-        self.collected_features.clear()
-        self.collected_targets_x.clear()
-        self.collected_targets_y.clear()
+        self.collected_base_preds.clear()
+        self.collected_errors.clear()
     
     def trigger_collection(self):
         if self._is_calibrating and self._is_waiting_for_trigger:
@@ -50,24 +50,27 @@ class Calibrator:
         else:
             print(f"Chuyển sang điểm {self.current_point_index + 1}...")
             self._is_waiting_for_trigger = True
-            self.current_sample_count = 0
+            self.samples_collected = 0
     
     def stop(self):
         print("Hủy bỏ hiệu chỉnh.")
         self._is_calibrating = False
         
-    def update(self, feature_vector):
-        if not self._is_calibrating or self._is_finished:
+    def collect_sample(self, features):
+        if not self._is_calibrating or self._is_waiting_for_trigger:
             return
-        if self._is_waiting_for_trigger:
-            return
-        target_coords = self.points_to_calibrate[self.current_point_index]
-        self.collected_features.append(feature_vector)
-        self.collected_targets_x.append(target_coords[0])
-        self.collected_targets_y.append(target_coords[1])
-        self.current_sample_count += 1
         
-        if self.current_sample_count >= self.samples_per_point:
+        target_norm = self.points_to_calibrate[self.current_point_index]
+        features_scaled = self.base_scaler.transform(features.reshape(1, -1))
+        predicted_norm = self.base_model.predict(features_scaled)[0]
+        
+        error = np.array(target_norm) - np.array(predicted_norm)
+        
+        self.collected_base_preds.append(predicted_norm)
+        self.collected_errors.append(error)
+        self.samples_collected += 1
+        
+        if self.samples_collected >= self.samples_per_point:
             self._move_to_next_point()
         
     def _finish_calibration(self):
@@ -75,15 +78,24 @@ class Calibrator:
         self._is_calibrating = False
         self._is_finished = True
 
-        try:
-            self.estimator.fit(
-                self.collected_features,
-                self.collected_targets_x,
-                self.collected_targets_y
-            )
-        except Exception as e:
-            print(f"LỖI trong quá trình huấn luyện GazeEstimator: {e}")
-            self._is_finished = False # Đánh dấu là chưa hoàn thành nếu huấn luyện lỗi
+        if len(self.collected_base_preds) > 0:
+            self.error_model.fit(self.collected_base_preds, self.collected_errors)
+            self._is_finished = True
+            print("[Calibrator] Error model trained. Calibration complete.")
+        else:
+            print("[Calibrator] Lỗi: Không có dữ liệu để huấn luyện.")
+            
+    def get_estimated_gaze(self, features):
+        if not self._is_finished:
+            raise RuntimeError('Calibrator chưa hoàn tất hiệu chỉnh')
+        
+        features_scaled = self.base_scaler.transform(features.reshape(1, -1))
+        base_prediction = self.base_model.predict(features_scaled)
+        error_correction = self.error_model.predict(base_prediction)
+        
+        corrected_gaze = base_prediction + error_correction
+        
+        return corrected_gaze[0]
 
     def get_current_target_norm_coords(self):
         if not self._is_calibrating:
@@ -98,7 +110,7 @@ class Calibrator:
         if self._is_calibrating:
             if self._is_waiting_for_trigger:
                 return (f"Nhin vao diem ({self.current_point_index + 1}/{self.total_points}) "
-                        f"& Nhan [SPACE]...")
+                        f"& Press SPACE to collect [{self.samples_collected}/{self.samples_per_point}]")
         return "Nhan 'C' de bat dau hieu chinh."
 
 
@@ -115,3 +127,7 @@ class Calibrator:
     @property
     def is_waiting_for_trigger(self):
         return self._is_waiting_for_trigger
+    
+    @property
+    def collection_progress_text(self):
+        return f"[{self.samples_collected}/{self.samples_per_point}]"

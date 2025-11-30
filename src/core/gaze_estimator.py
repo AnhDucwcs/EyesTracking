@@ -19,7 +19,8 @@ class GazeEstimator:
                 early_stopping=True
             ))
         ])
-        self.fitted = False
+        self.last_rvec = None
+        self.last_tvec = None
 
 
     def extract_features(self, lm_array, frame_width, frame_height):
@@ -51,22 +52,22 @@ class GazeEstimator:
         
         # Các điểm 3D của một khuôn mặt "mẫu"
         model_points = np.array([
-            (0.0, 0.0, 0.0),       # 1. Chóp mũi (Index 1)
-            (0.0, -330.0, -65.0),  # 2. Cằm (Index 152)
-            (-225.0, 170.0, -135.0),# 3. Khóe mắt trái (Index 33)
-            (225.0, 170.0, -135.0), # 4. Khóe mắt phải (Index 263)
-            (-150.0, -150.0, -125.0),# 5. Khóe miệng trái (Index 61)
-            (150.0, -150.0, -125.0) # 6. Khóe miệng phải (Index 291)
-        ], dtype=np.float64)
+                            (0.0, 0.0, 0.0),           # 1. Nose tip
+                            (-45.0, -30.0, 50.0),      # 2. Left eye left corner
+                            (45.0, -30.0, 50.0),       # 3. Right eye right corne
+                            (-30.0, 50.0, 40.0),       # 4. Left Mouth corner
+                            (30.0, 50.0, 40.0),        # 5. Right mouth corner
+                            (0.0, 120.0, 40.0),        # 6. Chin
+                        ])
 
         # Các điểm 2D tương ứng từ MediaPipe (chỉ lấy x, y)
         image_points = np.array([
-            lm_array[1][:2],    # 1. Chóp mũi
-            lm_array[152][:2],  # 2. Cằm
-            lm_array[33][:2],   # 3. Khóe mắt trái
-            lm_array[263][:2],  # 4. Khóe mắt phải
-            lm_array[61][:2],   # 5. Khóe miệng trái
-            lm_array[291][:2]   # 6. Khóe miệng phải
+            lm_array[1][:2],    # 1. Chóp mũi (Index 1)
+            lm_array[33][:2],   # 2. Mắt trái ngoài (Index 33)
+            lm_array[263][:2],  # 3. Mắt phải ngoài (Index 263)
+            lm_array[61][:2],   # 4. Mép miệng trái
+            lm_array[291][:2],  # 5. Mép miệng phải
+            lm_array[152][:2]   # 6. Cằm (Index 152)
         ], dtype=np.float64)
 
         # Ước tính Camera Matrix (giả định đơn giản)
@@ -74,17 +75,52 @@ class GazeEstimator:
         center = (frame_width / 2, frame_height / 2)
         camera_matrix = np.array(
             [[focal_length, 0, center[0]],
-                [0, focal_length, center[1]],
-                [0, 0, 1]], dtype=np.float64
+             [0, focal_length, center[1]],
+             [0, 0, 1]], dtype=np.float64
         )
 
         # Giả sử không có méo ống kính
         dist_coeffs = np.zeros((4, 1), dtype=np.float64)
 
-        # Tính toán tư thế đầu
-        (_, rvec, tvec) = cv2.solvePnP(model_points, image_points, camera_matrix, dist_coeffs)
         
-        # Dàn phẳng rvec (3 giá trị) và tvec (3 giá trị)
+        if self.last_rvec is not None:
+            rvec = self.last_rvec
+            tvec = self.last_tvec
+            use_guess = True
+        else:
+            rvec = np.zeros((3, 1))
+            tvec = np.zeros((3, 1))
+            use_guess = False
+            
+        # Tính toán tư thế đầu
+        try:
+            success, rvec, tvec = cv2.solvePnP(
+                model_points, 
+                image_points, 
+                camera_matrix, 
+                dist_coeffs, 
+                rvec=rvec,
+                tvec=tvec,
+                useExtrinsicGuess=use_guess,
+                flags=cv2.SOLVEPNP_ITERATIVE
+            )
+            
+            if success:
+                self.last_rvec = rvec
+                self.last_tvec = tvec
+            else:
+                self.last_rvec = None
+                self.last_tvec = None
+                rvec = np.zeros((3, 1))
+                tvec = np.zeros((3, 1))
+                
+        except Exception:
+            self.last_rvec = None
+            self.last_tvec = None
+            rvec = np.zeros((3, 1))
+            tvec = np.zeros((3, 1))
+        
+
         pose_features = np.concatenate((rvec.flatten(), tvec.flatten()))
 
 
@@ -92,29 +128,3 @@ class GazeEstimator:
         features = np.nan_to_num(features, nan=0.0) 
         
         return features
-
-
-    def fit(self, X_feats, Yx, Yy):
-        """
-        Huấn luyện mô hình.
-        X_feats: danh sách các mảng đặc trưng (đầu vào X)
-        Yx: danh sách tọa độ x (đầu ra Y)
-        Yy: danh sách tọa độ y (đầu ra Y)
-        """
-        X = np.array(X_feats)
-        Y = np.column_stack((Yx, Yy))
-        
-        print(f"Bắt đầu huấn luyện MLPRegressor trên {len(X)} mẫu, {X.shape[1]} đặc trưng...")
-        self.model.fit(X, Y)
-        self.fitted = True
-        print("Huấn luyện MLPRegressor hoàn tất.")
-
-
-    def predict(self, feat):
-        if not self.fitted:
-            raise RuntimeError('GazeEstimator chưa được huấn luyện (fitted)')
-            
-        F = feat.reshape(1, -1)
-        predicted_coords = self.model.predict(F)
-        coords = predicted_coords[0]
-        return (float(coords[0]), float(coords[1]))
