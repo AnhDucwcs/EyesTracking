@@ -1,0 +1,20 @@
+thresholds:
+    eye_feature_min: -2.0
+    eye_feature_max: 2.0
+    head_z_min: 350.0
+    head_z_max: 1500.0
+    head_yaw_pitch_min: -2.0
+    head_yaw_pitch_max: 2.0
+
+collection:
+    samples_per_point_sc1: 50
+    capture_interval: 0.07   # Giây (Scenario 2 & 3)
+    jump_interval_sc3: 4.0   # Giây (Scenario 3)
+
+calibration:
+    samples_per_point: 100
+    grid_size: 3
+
+filter:
+    min_cutoff: 0.5
+    beta: 0.1

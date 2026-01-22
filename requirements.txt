@@ -9,4 +9,5 @@ pandas
 matplotlib
 seaborn
 joblib
+pyyaml
 >>>>>>> Stashed changes

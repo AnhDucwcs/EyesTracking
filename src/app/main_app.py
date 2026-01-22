@@ -13,17 +13,25 @@ from core.filters import EMAFilter, OneEuroWrapper
 from core.utils import get_screen_dimensions
 import app.ui_overlay as ui
 
-
+from config.config_loader import cfg
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 ROOT_DIR = os.path.dirname(SRC_DIR)
-# MODEL_TO_TEST = 'model_RandomForest.pkl'
-# MODEL_TO_TEST = 'model_KNeighbors.pkl'
-MODEL_TO_TEST = 'model_MLP.pkl'
-MODEL_PATH = os.path.join(ROOT_DIR, 'models', MODEL_TO_TEST)
-SCALER_PATH = os.path.join(ROOT_DIR, 'models', 'scaler.pkl')
+
+# Lấy đường dẫn model
+MODEL_TO_TEST = cfg.paths['models']['default_model']
+MODEL_PATH = cfg.get_model_path()
+SCALER_PATH = cfg.get_scaler_path()
 print(f"--- ĐANG THỬ NGHIỆM VỚI MÔ HÌNH: {MODEL_TO_TEST} ---")
+
+# Lấy cấu hình calibration
+CALIBRATION_SAMPLES_PER_POINT = cfg.settings['calibration']['samples_per_point']
+CALIBRATION_GRID_SIZE = cfg.settings['calibration']['grid_size']
+
+# Lấy cấu hình filter
+FILTER_MIN_CUTOFF = cfg.settings['filter']['min_cutoff']
+FILTER_BETA = cfg.settings['filter']['beta']
 
 
 def main():
@@ -31,7 +39,7 @@ def main():
     cam = Camera()
     detector = FaceMeshDetector()
     estimator = GazeEstimator()
-    gaze_filter = OneEuroWrapper(min_cutoff = 0.5, beta = 0.1)
+    gaze_filter = OneEuroWrapper(min_cutoff=FILTER_MIN_CUTOFF, beta=FILTER_BETA)
     
     FRAME_WIDTH, FRAME_HEIGHT = cam.width, cam.height
     print(f"Kích thước Frame: {FRAME_WIDTH}x{FRAME_HEIGHT}")
@@ -48,7 +56,7 @@ def main():
         print("Vui lòng chạy train_model.py trước.")
         return
 
-    calibrator = Calibrator(model, scaler, samples_per_point=50, grid_size=3)
+    calibrator = Calibrator(model, scaler, samples_per_point=CALIBRATION_SAMPLES_PER_POINT, grid_size=CALIBRATION_GRID_SIZE)
 
     # Khởi động camera
     print("Đang khởi động camera...")
@@ -128,8 +136,8 @@ def main():
                     gaze_px_x = int(gaze_norm_filtered[0] * SCREEN_WIDTH)
                     gaze_px_y = int(gaze_norm_filtered[1] * SCREEN_HEIGHT)
                     ui.draw_gaze_dot(canvas, (gaze_px_x, gaze_px_y))
-        else:
-            if key == ord('c'):
+        
+        if key == ord('c'):
                 calibrator.start()
         
         status_text = calibrator.get_progress_text()

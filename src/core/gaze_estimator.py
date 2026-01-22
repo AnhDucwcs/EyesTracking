@@ -84,8 +84,8 @@ class GazeEstimator:
 
         
         if self.last_rvec is not None:
-            rvec = self.last_rvec
-            tvec = self.last_tvec
+            tvec = np.array([[0.0], [0.0], [800.0]], dtype=np.float64)
+            rvec = np.zeros((3, 1), dtype=np.float64)
             use_guess = True
         else:
             rvec = np.zeros((3, 1))
@@ -104,8 +104,10 @@ class GazeEstimator:
                 useExtrinsicGuess=use_guess,
                 flags=cv2.SOLVEPNP_ITERATIVE
             )
-            
-            if success:
+            if tvec[2] < 0:
+                self.last_rvec = None
+                self.last_tvec = None
+            elif success:
                 self.last_rvec = rvec
                 self.last_tvec = tvec
             else:

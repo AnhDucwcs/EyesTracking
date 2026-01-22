@@ -1,0 +1,8 @@
+data:
+    base_dir: "data"
+    output_filename: "data_nightlight01.csv"
+
+models:
+    base_dir: "models"
+    default_model: "model_MLP.pkl"
+    scaler: "scaler.pkl"

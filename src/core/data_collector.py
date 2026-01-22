@@ -14,25 +14,26 @@ import random
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
 ROOT_DIR = os.path.dirname(SRC_DIR)
-DATA_DIR = os.path.join(ROOT_DIR, 'data')
-OUTPUT_CSV = os.path.join(DATA_DIR, 'data_nightlight.csv')
 
+
+from config.config_loader import cfg
+
+DATA_DIR = cfg.get_data_dir()
+OUTPUT_CSV = cfg.get_output_csv_path()
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Cấu hình ngưỡng để lọc dữ liệu bất thường
-EYE_FEATURE_MIN = -2.0
-EYE_FEATURE_MAX = 2.0
-HEAD_Z_MIN = 350.0
-HEAD_Z_MAX = 1500.0
-HEAD_PITCH_MIN = -0.2
-HEAD_PITCH_MAX = 0.1
-HEAD_YAW_MIN = -0.85 
-HEAD_YAW_MAX = 0.85 
+# Cấu hình ngưỡng để lọc dữ liệu bất thường 
+EYE_FEATURE_MIN = cfg.settings['thresholds']['eye_feature_min']
+EYE_FEATURE_MAX = cfg.settings['thresholds']['eye_feature_max']
+HEAD_Z_MIN      = cfg.settings['thresholds']['head_z_min']
+HEAD_Z_MAX      = cfg.settings['thresholds']['head_z_max']
+HEAD_YAW_PITCH_MIN = cfg.settings['thresholds']['head_yaw_pitch_min']
+HEAD_YAW_PITCH_MAX = cfg.settings['thresholds']['head_yaw_pitch_max']
 
-
-SAMPLES_PER_POINT_SC1 = 50
-CAPTURE_INTERVAL = 0.1  # giây giữa các lần chụp trong Scenario 2 và 3
-JUMP_INTERVAL_SC3 = 4.0  # giây giữa các lần nhảy của mục tiêu trong Scenario 3
+# Cấu hình collection 
+SAMPLES_PER_POINT_SC1 = cfg.settings['collection']['samples_per_point_sc1']
+CAPTURE_INTERVAL = cfg.settings['collection']['capture_interval']
+JUMP_INTERVAL_SC3 = cfg.settings['collection']['jump_interval_sc3']
 
 
 def is_data_sane(features):
@@ -54,25 +55,25 @@ def is_data_sane(features):
     if not (HEAD_Z_MIN < tz < HEAD_Z_MAX):
         return False, f"Sai Khoang cach (tz={tz:.0f})"
 
-    # # --- 3. KIỂM TRA PITCH (Cúi/Ngẩng) ---
-    # if not (HEAD_PITCH_MIN < pitch < HEAD_PITCH_MAX):
-    #     return False, f"Cui/Ngua qua muc ({pitch:.2f})"
+    # --- 3. KIỂM TRA PITCH (Cúi/Ngẩng) ---
+    if not (HEAD_YAW_PITCH_MIN < pitch < HEAD_YAW_PITCH_MAX):
+        return False, f"Cui/Ngua qua muc ({pitch:.2f})"
 
-    # # --- 4. KIỂM TRA YAW (Trái/Phải) ---
-    # if not (HEAD_YAW_MIN < yaw < HEAD_YAW_MAX):
-    #     return False, f"Xoay Trai/Phai qua muc ({yaw:.2f})"
+    # --- 4. KIỂM TRA YAW (Trái/Phải) ---
+    if not (HEAD_YAW_PITCH_MIN < yaw < HEAD_YAW_PITCH_MAX):
+        return False, f"Xoay Trai/Phai qua muc ({yaw:.2f})"
 
-    # Dữ liệu hợp lệ
     return True, ""
 
 def update_natural_target(target_pos, target_vel, frame_width, frame_height, last_jump_time):
+    """Hàm này cập nhật vị trí mục tiêu trong Scenario 3. Hàm này di chuyển mục tiêu và xử lý nhảy vị trí sau khoảng thời gian định sẵn."""
     current_time = time.time()
     did_jump = False
     if (current_time - last_jump_time) > JUMP_INTERVAL_SC3:
         x = random.randint(int(frame_width * 0.1), int(frame_width * 0.9))
         y = random.randint(int(frame_height * 0.1), int(frame_height * 0.9))
-        vx = random.choice([-3, 3])
-        vy = random.choice([-3, 3])
+        vx = random.choice([-4, 4])
+        vy = random.choice([-4, 4])
         last_jump_time = current_time
         did_jump = True
         return (x, y), (vx, vy), last_jump_time, did_jump
@@ -127,7 +128,7 @@ def main():
         calibration_points_pixel.append((px, py))
     calib_num_points = len(calibration_points_pixel)
     
-    compensation_norm_points = generate_calibration_points(3, 0.2)
+    compensation_norm_points = generate_calibration_points(3, 0.07)
     compensation_points_pixel = []
     for nx, ny in compensation_norm_points:
         px = int(nx * SCREEN_WIDTH)
@@ -135,8 +136,14 @@ def main():
         compensation_points_pixel.append((px, py))
     compensation_num_points = len(compensation_points_pixel)
     natural_target = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-    natural_velocity = (random.choice([-3, 3]), random.choice([-3, 3]))
+    natural_velocity = (random.choice([-4, 4]), random.choice([-4, 4]))
     
+    
+    """
+    Scenario 1: cố định đầu, nhìn vào các điểm hiệu chuẩn
+    Scenario 2: di chuyển đầu (trái/phải, lên/xuống, tiến/lùi) trong khi nhìn cố định vào điểm mục tiêu
+    Scenario 3: di chuyển tự nhiên đầu và mắt để theo dõi mục tiêu di chuyển
+    """
     current_scenario = 0  # 0=Idle, 1=Calib, 2=Comp, 3=Natural
     calib_point_index = 0
     compensation_point_index = 0

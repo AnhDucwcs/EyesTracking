@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-df = pd.read_csv("data/data_nightlight.csv")
+df = pd.read_csv("data/training_master.csv")
 eye_cols = ['feat_0', 'feat_1', 'feat_2', 'feat_3']
 head_cols = ['feat_4', 'feat_5', 'feat_6', 'feat_7', 'feat_8', 'feat_9']
 
@@ -36,15 +36,11 @@ if len(invalid_targets) > 0:
     print("Đã xóa các hàng target không hợp lệ.")
 
 
-# df = df.drop(index=[])
-# df = df[(df['feat_9'] > 0) & (df['feat_9'] < 6000)]
-# df = df[(df['feat_7'] > -10000) & (df['feat_7'] < 10000)]
-# df = df[(df['feat_8'] > -10000) & (df['feat_8'] < 10000)]
-
-# df = df[(df['feat_0'] < 3.2) & (df['feat_0'] > 2.7)]
-# df = df[(df['feat_1'] < 1.0) & (df['feat_1'] > -0)]
-# df = df[(df['feat_2'] < -1.8) & (df['feat_2'] > -2.2)]
-# df = df[(df['feat_3'] < 1.0) & (df['feat_3'] > -0.1)]
+# df = df[
+#     (df['feat_4'] > -5.0) & (df['feat_4'] < 5.0) &
+#     (df['feat_5'] > -5.0) & (df['feat_5'] < 5.0) &
+#     (df['feat_6'] > -5.0) & (df['feat_6'] < 5.0)
+# ]
 
 # print(f"Dữ liệu sau làm sạch có {len(df)} hàng.")
 
@@ -71,5 +67,5 @@ plt.title("Mối quan hệ Giữa target_x và target_y")
 plt.show()
 
 # print(f"Dữ liệu sạch cuối cùng có {len(df)} hàng.")
-# output_filename = 'data/data_cafe_0_cleaned1.csv'
+# output_filename = 'data/training_master.csv'
 # df.to_csv(output_filename, index=False)

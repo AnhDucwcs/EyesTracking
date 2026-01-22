@@ -2,8 +2,8 @@ import pandas as pd
 import os
 
 # 1. Đường dẫn đến các file
-file1_path = 'data/data_daylight.csv'
-file2_path = 'data/data_nightlight.csv'
+file1_path = 'data/data_nightlight_right.csv'
+file2_path = 'data/training_master.csv'
 output_path = 'data/training_master.csv'
 
 # 2. Đọc dữ liệu
