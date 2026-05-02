@@ -92,9 +92,20 @@ gaze_filter = OneEuroWrapper(min_cutoff = 0.5, beta = 0.1)
 - Độ phân giải camera
 - Khoảng cách từ camera đến người dùng
 
-Với mô hình MLP:
-- RMSE: 0.073165
-- R2 Score: 0.9249
+### Kết quả huấn luyện mô hình
+
+Sau khi huấn luyện với 48,077 mẫu dữ liệu (38,461 mẫu training):
+
+| Mô hình | RMSE | R² Score | Ghi chú |
+|---------|------|----------|---------|
+| **RandomForest** | 0.110965 | 0.8621 | RMSE thấp nhất |
+| **KNeighbors** | 0.113184 | 0.8565 | Đã lưu |
+| **MLP** | 0.116763 | 0.8472 | **Ổn định nhất trong thực tế** |
+
+**Nhận xét thực tế:**
+- Cả 3 mô hình đều hoạt động tốt trên trục hoành (X)
+- Cả 3 mô hình đều yếu hơn trên trục tung (Y)
+- Mặc dù RMSE cao hơn, **mô hình MLP cho kết quả ổn định nhất trong thực tế** và được khuyến nghị sử dụng
 
 
 ## Tài liệu tham khảo

@@ -1,13 +1,11 @@
 opencv-python
-mediapipe
+mediapipe==0.10.14
 numpy
 scikit-learn
 pyautogui
-<<<<<<< Updated upstream
-=======
 pandas
 matplotlib
 seaborn
 joblib
 pyyaml
->>>>>>> Stashed changes
+
